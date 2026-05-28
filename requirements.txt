@@ -1,4 +1,5 @@
 opencv-python-headless
 Pillow
 numpy
-
+pandas
+scikit-learn
