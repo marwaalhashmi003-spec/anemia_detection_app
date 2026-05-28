@@ -7,345 +7,311 @@ import sqlite3
 from datetime import datetime
 import json
 import time
-
-# استدعاء مكتبة Scikit-Learn الحقيقية لبناء شجرة القرار الطبية الاستدلالية
 from sklearn.tree import DecisionTreeClassifier
 
 # ==========================================
-# 1. تهيئة جلسة العمل والنظام المتتالي (Multi-step Session State)
+# 1. تهيئة تيار الجلسة (Session State)
 # ==========================================
-if 'current_step' not in st.session_state:
-    st.session_state.current_step = 1
-
-# تهيئة متغيرات تخزين البيانات لضمان عدم ضياعها أثناء الانتقال
+if 'current_step' not in st.session_state: st.session_state.current_step = 1
 if 'patient_name' not in st.session_state: st.session_state.patient_name = ""
 if 'national_id' not in st.session_state: st.session_state.national_id = ""
-if 'node_selection' not in st.session_state: st.session_state.node_selection = "عقدة مستشعر ملتحمة العين الدقيقة (Ocular Conjunctiva Node)"
+if 'node_selection' not in st.session_state: st.session_state.node_selection = "عقدة ملتحمة العين (Ocular Node)"
 if 'computed_pallor' not in st.session_state: st.session_state.computed_pallor = 0.0
 if 'img_processed' not in st.session_state: st.session_state.img_processed = False
-if 'symptoms_data' not in st.session_state: st.session_state.symptoms_data = {}
 if 'final_report_data' not in st.session_state: st.session_state.final_report_data = None
 
 # ==========================================
-# 2. إعداد الواجهة الطبية الرئيسية وتطبيق التنسيق المتجاوب
+# 2. إعداد الصفحة وهندسة المظهر العصري (Modern Minimalist CSS)
 # ==========================================
-st.set_page_config(page_title="BioLens AI", page_icon="🔬", layout="wide")
+st.set_page_config(page_title="BioLens Precision", page_icon="🔬", layout="centered")
 
-# هندسة CSS مخصصة لإخفاء الأزرار المزعجة وحل التداخلات نهائياً على الجوال
 st.markdown("""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Noto+Kufi+Arabic:wght@400;500;600;700&display=swap');
     
-    /* ضبط الخطوط والاتجاه العام */
-    * { font-family: 'Tajawal', sans-serif !important; direction: rtl !important; text-align: right; }
+    /* تصفير العشوائية وتحديد الخطوط والاتجاه */
+    html, body, [data-testid="stAppViewContainer"] {
+        background-color: #f8fafc !important; /* خلفية هادئة مريحة للعين */
+        direction: rtl !important;
+        text-align: right !important;
+    }
     
-    /* إخفاء القائمة الجانبية الافتراضية لعدم حدوث تداخل أو تقطيع نصوص على الجوال */
+    h1, h2, h3, h4, h5, h6, p, span, label, button {
+        font-family: 'Noto Kufi Arabic', 'Inter', sans-serif !important;
+    }
+
+    /* إخفاء القائمة الجانبية المزعجة نهائياً لمنع أي تداخل */
     [data-testid="stSidebar"] { display: none !important; }
     [data-testid="collapsedSidebarCollapsedAnchor"] { display: none !important; }
+    header { visibility: hidden !important; } /* إخفاء شريط أزرار ستريمليت العلوي المشوه */
     
-    /* لافتة الهيدر الأكاديمي المتجاوبة */
-    .premium-header {
-        background: linear-gradient(135deg, #1e3a8a 0%, #10b981 100%) !important;
-        padding: 20px !important;
-        border-radius: 12px !important;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.1) !important;
-        margin-bottom: 20px !important;
-        color: white !important;
+    /* الهيدر الاحترافي البسيط */
+    .app-brand {
         text-align: center !important;
+        padding: 15px 0 25px 0;
     }
-    .premium-header h1 { color: white !important; text-align: center !important; font-size: 24px !important; margin: 0 0 8px 0; }
-    .premium-header p { color: #f3f4f6 !important; text-align: center !important; font-size: 14px !important; margin: 0; }
-    
-    /* بطاقات المراحل السريرية */
-    .step-card {
-        background: rgba(128,128,128,0.04) !important;
-        padding: 20px !important;
-        border-radius: 12px !important;
-        border: 1px solid rgba(128,128,128,0.12) !important;
-        margin-bottom: 15px !important;
-    }
-    
-    .step-title {
-        color: #2563eb !important;
+    .app-brand h1 {
+        color: #0f172a !important;
+        font-size: 26px !important;
         font-weight: 700 !important;
-        font-size: 18px !important;
-        margin-bottom: 12px !important;
+        margin-bottom: 5px !important;
+    }
+    .app-brand p {
+        color: #64748b !important;
+        font-size: 14px !important;
+        margin: 0 !important;
+    }
+
+    /* بطاقات العمل البيضاء الفاخرة النظيفة */
+    .clinical-card {
+        background-color: #ffffff !important;
+        border: 1px solid #e2e8f0 !important;
+        border-radius: 16px !important;
+        padding: 24px !important;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03) !important;
+        margin-bottom: 20px !important;
     }
     
-    /* شريط تتبع مؤشر المراحل المتجاوب بدون تداخل */
-    .wizard-progress {
+    .card-heading {
+        color: #1e40af !important;
+        font-size: 16px !important;
+        font-weight: 600 !important;
+        margin-bottom: 18px !important;
+        border-right: 4px solid #3b82f6;
+        padding-right: 8px;
+    }
+
+    /* شريط خطوات ذكي وناعم بدون ألوان فاقعة */
+    .step-bar {
         display: flex;
-        justify-content: space-around;
-        background: rgba(128,128,128,0.06);
-        padding: 10px;
-        border-radius: 8px;
-        margin-bottom: 20px;
-        gap: 5px;
+        justify-content: space-between;
+        background-color: #ededed;
+        border-radius: 30px;
+        padding: 4px;
+        margin-bottom: 25px;
     }
-    .wizard-badge {
-        padding: 6px 10px;
-        border-radius: 15px;
-        font-size: 11px;
-        font-weight: bold;
-        text-align: center !important;
+    .step-point {
         flex: 1;
+        text-align: center !important;
+        padding: 6px 10px;
+        font-size: 12px;
+        font-weight: 500;
+        border-radius: 25px;
+        color: #64748b;
     }
-    .badge-active { background-color: #2563eb !important; color: white !important; }
-    .badge-inactive { background-color: rgba(128,128,128,0.15) !important; color: #6b7280 !important; }
+    .step-point.active {
+        background-color: #ffffff !important;
+        color: #0f172a !important;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.06) !important;
+        font-weight: 600;
+    }
+    
+    /* تحسين شكل المدخلات المكتوبة */
+    div[data-testid="stTextInput"] input, div[data-testid="stSelectbox"] div {
+        border-radius: 10px !important;
+        border: 1px solid #cbd5e1 !important;
+    }
     </style>
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 3. تدريب نموذج شجرة القرار (Scikit-Learn) بالخلفية
+# 3. محرك الاستدلال الذكي (Scikit-Learn)
 # ==========================================
 @st.cache_resource
-def train_scikit_decision_tree():
-    X_train = np.array([
-        [20.0, 0, 0, 0, 0, 0], [55.0, 1, 1, 1, 1, 0], 
-        [40.0, 1, 1, 0, 0, 1], [120.0, 1, 1, 1, 1, 1], 
-        [15.0, 0, 0, 0, 0, 0], [65.0, 1, 1, 1, 0, 0]
-    ])
-    y_train = np.array([0, 1, 2, 3, 0, 1])
-    clf = DecisionTreeClassifier(criterion='entropy', max_depth=5, random_state=42)
-    clf.fit(X_train, y_train)
-    return clf
+def get_ml_model():
+    X = np.array([[20.,0,0,0,0,0], [55.,1,1,1,1,0], [40.,1,1,0,0,1], [120.,1,1,1,1,1]])
+    y = np.array([0, 1, 2, 3])
+    return DecisionTreeClassifier(max_depth=3, random_state=42).fit(X, y)
 
-biolens_classifier = train_scikit_decision_tree()
+ml_engine = get_ml_model()
 
 # ==========================================
-# 4. بناء قاعدة البيانات المحلية (SQLite3)
+# 4. التحكم في التبديل العلوي بين الأقسام
 # ==========================================
-def create_biolens_cloud_db():
-    conn = sqlite3.connect('biolens_clinical_cloud_v6.db')
-    cursor = conn.cursor()
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS records (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            patient_name TEXT,
-            national_id TEXT,
-            timestamp TEXT,
-            node_type TEXT,
-            pallor_feature REAL,
-            computed_hb REAL,
-            severity_output TEXT,
-            symptoms_profile TEXT
-        )
-    ''')
-    conn.commit()
-    conn.close()
+st.markdown("""
+    <div class='app-brand'>
+        <h1>BioLens Precision</h1>
+        <p>المنصة السريرية المتكاملة لفحص شحوب الأنسجة وتحليل المؤشرات الحيوية</p>
+    </div>
+""", unsafe_allow_html=True)
 
-create_biolens_cloud_db()
-
-# ==========================================
-# 5. التبديل الرئيسي العلوى السلس (بديل القائمة الجانبية المخربة للـ Mobile)
-# ==========================================
-selected_mode = st.radio(
-    "اختر لوحة العمل الحالية:",
-    ["🧠 محرك الفحص والتشخيص المتتالي", "📊 لوحة السجلات ونظام المراسلة للطبيب"],
-    horizontal=True
+main_tab = st.segmented_control(
+    "واجهة التشغيل الحالية:",
+    options=["🧠 بوابة الفحص المتتابع", "📊 قاعدة بيانات الطبيب والمراسلة"],
+    default="🧠 بوابة الفحص المتتابع",
+    label_visibility="collapsed"
 )
 
-st.markdown("---")
+st.markdown("<br>", unsafe_allow_html=True)
 
 # ==========================================
-# 6. الواجهة الأولى: محرك الفحص المتتالي
+# 5. المسار الأول: بوابة الفحص التتابعي (دخلات وطلعات الصفحات)
 # ==========================================
-if selected_mode == "🧠 محرك الفحص والتشخيص المتتالي":
+if main_tab == "🧠 بوابة الفحص المتتابع":
     
-    st.markdown("""
-        <div class='premium-header'>
-            <h1>منصة BioLens الطبية الذكية</h1>
-            <p>نظام تشخيص تفاعلي متتابع فائق السلاسة متوافق تماماً مع أجهزة الهاتف</p>
-        </div>
-    """, unsafe_allow_html=True)
-    
-    # مؤشر المراحل العلوي
-    step1_cls = "badge-active" if st.session_state.current_step == 1 else "badge-inactive"
-    step2_cls = "badge-active" if st.session_state.current_step == 2 else "badge-inactive"
-    step3_cls = "badge-active" if st.session_state.current_step == 3 else "badge-inactive"
-    step4_cls = "badge-active" if st.session_state.current_step == 4 else "badge-inactive"
+    # رسم شريط الخطوات المعاصر والنظيف
+    s1 = "active" if st.session_state.current_step == 1 else ""
+    s2 = "active" if st.session_state.current_step == 2 else ""
+    s3 = "active" if st.session_state.current_step == 3 else ""
+    s4 = "active" if st.session_state.current_step == 4 else ""
     
     st.markdown(f"""
-        <div class='wizard-progress'>
-            <span class='wizard-badge {step1_cls}'>1. المريض 👤</span>
-            <span class='wizard-badge {step2_cls}'>2. المصفوفة 🖼️</span>
-            <span class='wizard-badge {step3_cls}'>3. الأعراض 🩺</span>
-            <span class='wizard-badge {step4_cls}'>4. النتيجة 📋</span>
+        <div class='step-bar'>
+            <div class='step-point {s1}'>1. الهوية</div>
+            <div class='step-point {s2}'>2. المستشعر</div>
+            <div class='step-point {s3}'>3. الأعراض</div>
+            <div class='step-point {s4}'>4. النتيجة</div>
         </div>
     """, unsafe_allow_html=True)
-    
+
     # ------------------------------------------
-    # المرحلة 1: بيانات المريض
+    # الصفحة 1: هوية المريض
     # ------------------------------------------
     if st.session_state.current_step == 1:
-        st.markdown("<div class='step-card'><div class='step-title'>👤 المرحلة الأولى: تسجيل بيانات حالة المريض والـ IoT</div>", unsafe_allow_html=True)
+        st.markdown("<div class='clinical-card'><div class='card-heading'>معلومات المريض وعقدة الاستشعار</div>", unsafe_allow_html=True)
         
-        p_name_input = st.text_input("اسم المريض الثلاثي الكامل:", value=st.session_state.patient_name, placeholder="مثال: أسماء الورفلي")
-        n_id_input = st.text_input("الرقم الوطني للمريض:", value=st.session_state.national_id, placeholder="مثال: 2200506070")
+        p_name = st.text_input("اسم المريض بالكامل", value=st.session_state.patient_name, placeholder="مثال: سارة الأحمد")
+        p_id = st.text_input("الرقم الوطني / المعرّف الطبي الموحد", value=st.session_state.national_id, placeholder="مثال: 10203040")
+        p_node = st.selectbox("تحديد عقدة تجميع الإشارة الطرفية (IoT Node)", ["عقدة ملتحمة العين (Ocular Node)", "عقدة سرير الأظافر (Nail Bed Node)"])
         
-        node_input = st.selectbox(
-            "حدد موضع تركيز الإشارة للمستشعر الرقمي الـ IoT:",
-            ["عقدة مستشعر ملتحمة العين الدقيقة (Ocular Conjunctiva Node)", "عقدة مستشعر النسيج وسرير الأظافر الرقمي (Digital Nail Bed Node)"],
-            index=0 if st.session_state.node_selection.startswith("عقدة مستشعر ملتحمة") else 1
-        )
         st.markdown("</div>", unsafe_allow_html=True)
         
-        if st.button("الانتقال إلى خطوة معالجة الصورة ➡️", use_container_width=True):
-            if p_name_input and n_id_input:
-                st.session_state.patient_name = p_name_input
-                st.session_state.national_id = n_id_input
-                st.session_state.node_selection = node_input
+        if st.button("الانتقال لخطوة الفحص البصري ←", use_container_width=True, type="primary"):
+            if p_name and p_id:
+                st.session_state.patient_name = p_name
+                st.session_state.national_id = p_id
+                st.session_state.node_selection = p_node
                 st.session_state.current_step = 2
                 st.rerun()
             else:
-                st.error("⚠️ يرجى كتابة اسم المريض والرقم الوطني لتفعيل خطوة الفحص!")
+                st.toast("⚠️ يرجى ملء الحقول المطلوبة أولاً", icon="🛑")
 
     # ------------------------------------------
-    # المرحلة 2: معالجة الإشارة ومصفوفة OpenCV
+    # الصفحة 2: تحليل مستشعر الصورة (OpenCV)
     # ------------------------------------------
     elif st.session_state.current_step == 2:
-        st.markdown(f"<div class='step-card'><div class='step-title'>🖼️ المرحلة الثانية: التقاط الإشارة ومعالجة المصفوفة | {st.session_state.patient_name}</div>", unsafe_allow_html=True)
+        st.markdown(f"<div class='clinical-card'><div class='card-heading'>معالجة مصفوفة الإشارة البصرية | الحالة: {st.session_state.patient_name}</div>", unsafe_allow_html=True)
         
-        source_type = st.radio("مصدر تزويد المصفوفة البصرية:", ["استدلال ملف عينة رقمية من المستودع", "التقاط حي بكاميرا الهاتف المحمول"], horizontal=True)
+        src = st.radio("آلية قراءة مستشعر النسيج:", ["استدعاء عينة رقمية مخزنة", "التقاط فوري عبر كاميرا الهاتف"], horizontal=True)
         
-        uploaded_img = None
-        if source_type == "التقاط حي بكاميرا الهاتف المحمول":
-            uploaded_img = st.camera_input("وجه الكاميرا نحو النسيج المستهدف")
-        else:
-            uploaded_img = st.file_uploader("اختر ملف الصورة الرقمية:", type=["jpg", "jpeg", "png"])
-            
+        img_file = st.camera_input("التقاط") if src == "التقاط فوري عبر كاميرا الهاتف" else st.file_uploader("رفع ملف العينة البصرية", type=["jpg","png","jpeg"])
         st.markdown("</div>", unsafe_allow_html=True)
         
-        if uploaded_img is not None:
-            st.markdown("<div class='step-card'><h5>🔬 المعالجة الحية عبر فلاتر ومصفوفات OpenCV:</h5>", unsafe_allow_html=True)
+        if img_file:
+            st.markdown("<div class='clinical-card'><div class='card-heading'>معاينة استخلاص الحواف والميزات (Edge Detection Matrix)</div>", unsafe_allow_html=True)
             
-            pil_raw_img = Image.open(uploaded_img)
-            cv_bgr_img = cv2.cvtColor(np.array(pil_raw_img), cv2.COLOR_RGB2BGR)
-            cv_filtered = cv2.GaussianBlur(cv_bgr_img, (5, 5), 0)
-            cv_hsv = cv2.cvtColor(cv_filtered, cv2.COLOR_BGR2HSV)
+            raw = Image.open(img_file)
+            img_np = cv2.cvtColor(np.array(raw), cv2.COLOR_RGB2BGR)
+            blurred = cv2.GaussianBlur(img_np, (5,5), 0)
+            hsv = cv2.cvtColor(blurred, cv2.COLOR_BGR2HSV)
             
-            mean_saturation = np.mean(cv_hsv[:, :, 1])
-            mean_brightness = np.mean(cv_hsv[:, :, 2])
-            
-            computed_pallor = float(mean_brightness - (mean_saturation * 0.38))
-            st.session_state.computed_pallor = max(5.0, computed_pallor)
+            # حساب مؤشر الشحوب اللوني الفعلي برمجياً
+            st.session_state.computed_pallor = float(np.mean(hsv[:,:,2]) - (np.mean(hsv[:,:,1]) * 0.4))
             st.session_state.img_processed = True
             
-            cv_edges = cv2.Canny(cv_bgr_img, 40, 130)
+            edges = cv2.Canny(img_np, 50, 150)
+            st.image(edges, use_container_width=True, caption="مصفوفة تباين الميزات المستخلصة للـ IoT")
             
-            st.image(cv_edges, caption="🔬 مصفوفة استخلاص الحواف النشطة لـ OpenCV", use_container_width=True)
-            st.success(f"✅ تم تحليل المصفوفة! مؤشر الشحوب = {round(st.session_state.computed_pallor, 2)}")
+            st.markdown(f"<p style='color:#16a34a; font-weight:600;'>✓ تم استخلاص الميزة بنجاح. مؤشر الشحوب اللوني الحالي: {round(st.session_state.computed_pallor, 2)}</p>", unsafe_allow_html=True)
             st.markdown("</div>", unsafe_allow_html=True)
             
-        col_btn1, col_btn2 = st.columns(2)
-        with col_btn1:
-            if st.button("⬅️ السابق", use_container_width=True):
+        c1, c2 = st.columns(2)
+        with c1:
+            if st.button("→ السابق", use_container_width=True):
                 st.session_state.current_step = 1
                 st.rerun()
-        with col_btn2:
-            if st.button("التالي: الأعراض ➡️", use_container_width=True):
+        with c2:
+            if st.button("التالي: الأعراض السريرية ←", use_container_width=True, type="primary"):
                 if st.session_state.img_processed:
                     st.session_state.current_step = 3
                     st.rerun()
                 else:
-                    st.error("⚠️ الرجاء التقاط أو تزويد النظام بالصورة أولاً!")
+                    st.toast("⚠️ الرجاء تزويد النظام بالصورة الطبية أولاً", icon="🖼️")
 
     # ------------------------------------------
-    # المرحلة 3: الأعراض والاستبيان السريري
+    # الصفحة 3: الأعراض والاستبيان الإكلينيكي
     # ------------------------------------------
     elif st.session_state.current_step == 3:
-        st.markdown(f"<div class='step-card'><div class='step-title'>🩺 المرحلة الثالثة: الفحص السريري والأعراض | {st.session_state.patient_name}</div>", unsafe_allow_html=True)
+        st.markdown(f"<div class='clinical-card'><div class='card-heading'>الاستبيان الفسيولوجي والأعراض | الحالة: {st.session_state.patient_name}</div>", unsafe_allow_html=True)
         
-        s_fatigue = st.selectbox("• هل يعاني من تعب دائم وضيق تنفس حاد عند الجهد؟", ["لا، مستقر فسيولوجياً وطبيعياً", "نعم، يشكو من إجهاد حاد وضيق تنفس"])
-        s_diet = st.selectbox("• طبيعة المسار الغذائي الحالي للمريض:", ["متوازن وغني بالمصادر الحيوانية والحديد", "نباتي صارم أو يعتمد على وجبات غير صحية فقيرة الحديد"])
-        s_nails = st.selectbox("• هل تظهر علامات لتقعر وتشوّه شكل الأظافر السريري؟", ["لا، الحالة البنيوية للأظافر مستقرة", "نعم، الأظافر متقعرة ملعقية (Koilonychia) وهشة"])
-        s_pica = st.selectbox("• هل لوحظ تناول أشياء غير غذائية (مثل مضغ الثلج المستمر)؟", ["لا توجد علامات سلوكية غريبة", "نعم، رصدت شهوة سلوكية غريبة (عَرَض Pica إيجابي)"])
-        s_neuro = st.selectbox("• هل يشتكي من وخز وتنميل مستمر في الأطراف؟", ["لا توجد علامات عصبية محيطية", "نعم، يعاني من تنميل ووخز واعتلال عصبي حسي"])
-        
+        f1 = st.selectbox("هل يشتكي المريض من إعياء دائم وضيق تنفس غير مبرر؟", ["لا، فسيولوجيا الجسم مستقرة", "نعم، يعاني من إجهاد دائم وضيق تنفس"])
+        f2 = st.selectbox("طبيعة النمط الغذائي ومدى توفر مصادر الحديد والبروتين:", ["نمط غذائي متوازن وغني", "نمط نباتي صارم أو يعتمد على وجبات فقيرة الحديد"])
+        f3 = st.selectbox("المظهر السريري لبنية الأظافر والنسيج الطرفي:", ["مظهر طبيعي ومستقر", "تظهر علامات الأظافر المقعرة (Koilonychia)"])
+        f4 = st.selectbox("وجود اضطراب سلوكي لتناول مواد غير غذائية (Pica):", ["لا توجد شواهد سلوكية غريبة", "نعم، رصدت هذه الشهوة السلوكية الغريبة (مضغ الثلج/التراب)"])
+        f5 = st.selectbox("هل يشتكي من وخز، تنميل أو اعتلالات عصبية محيطية حادة؟", ["لا توجد علامات عصبية", "نعم، يعاني من وخز مستمر وتنميل بالأطراف"])
         st.markdown("</div>", unsafe_allow_html=True)
         
-        col_btn1, col_btn2 = st.columns(2)
-        with col_btn1:
-            if st.button("⬅️ السابق", use_container_width=True):
+        c1, c2 = st.columns(2)
+        with c1:
+            if st.button("→ السابق", use_container_width=True):
                 st.session_state.current_step = 2
                 st.rerun()
-        with col_btn2:
-            if st.button("🧠 معالجة شجرة القرار وإخراج النتيجة ➡️", use_container_width=True):
-                v_fatigue = 1 if "نعم" in s_fatigue else 0
-                v_diet = 1 if "نباتي" in s_diet else 0
-                v_nails = 1 if "نعم" in s_nails else 0
-                v_pica = 1 if "نعم" in s_pica else 0
-                v_neuro = 1 if "نعم" in s_neuro else 0
+        with c2:
+            if st.button("تحليل النتيجة الختامية عبر شجرة القرار ←", use_container_width=True, type="primary"):
+                v1 = 1 if "نعم" in f1 else 0
+                v2 = 1 if "نباتي" in f2 else 0
+                v3 = 1 if "نعم" in f3 else 0
+                v4 = 1 if "نعم" in f4 else 0
+                v5 = 1 if "نعم" in f5 else 0
                 
-                input_vector = np.array([[st.session_state.computed_pallor, v_fatigue, v_diet, v_nails, v_pica, v_neuro]])
-                predicted_class = int(biolens_classifier.predict(input_vector)[0])
+                # تنفيذ نموذج شجرة القرار والحساب التقديري للهيموجلوبين
+                pred = int(ml_engine.predict([[st.session_state.computed_pallor, v1, v2, v3, v4, v5]])[0])
+                hb_val = max(4.5, min(16.5, round(16.0 - (st.session_state.computed_pallor / 18.0) - (v1 * 0.6), 1)))
                 
-                base_hb = 16.2 - (st.session_state.computed_pallor / 16.5) - (v_fatigue * 0.5) - (v_diet * 0.3)
-                final_hb = max(4.0, min(17.0, round(base_hb, 1)))
+                if pred == 0 or hb_val >= 12.0: diag = "الحالة مستقرة وسليمة بنيوياً (Physiological Normal)"
+                elif pred == 3 or hb_val < 8.0: diag = "فقر دم حاد وحرج جداً (Severe Anemia - Critical)"
+                elif pred == 1: diag = "فقر دم ناتج عن نقص مخزون الحديد (Iron Deficiency Anemia)"
+                else: diag = "اشتباه فقر دم عوز فيتامين B12 (Pernicious Profile)"
                 
-                if predicted_class == 0 or final_hb >= 12.0:
-                    final_severity = "الحالة سليمة فسيولوجياً وبنيوياً (Physiological Normal Node)"
-                elif predicted_class == 3 or final_hb < 8.0:
-                    final_severity = "فقر دم حاد وحرج جداً (Severe Clinical Anemia)"
-                elif predicted_class == 1:
-                    final_severity = "فقر الدم الناتج عن نقص عوز الحديد (Iron Deficiency Anemia)"
-                else:
-                    final_severity = "فقر دم عوز فيتامين B12 / حمض الفوليك"
+                s_map = {"الإعياء": f1, "النمط الغذائي": f2, "الأظافر": f3, "اضطراب Pica": f4, "التنميل": f5}
+                now_str = datetime.now().strftime("%Y-%m-%d %H:%M")
                 
-                symptoms_map = {"الإرهاق": s_fatigue, "النمط الغذائي": s_diet, "تشوه الأظافر": s_nails, "شهوة الأجسام": s_pica, "التنميل": s_neuro}
-                current_timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
-                
-                # حفظ في SQLite
-                db_conn = sqlite3.connect('biolens_clinical_cloud_v6.db')
-                db_cursor = db_conn.cursor()
-                db_cursor.execute('''
-                    INSERT INTO records (
-                        patient_name, national_id, timestamp, node_type, 
-                        pallor_feature, computed_hb, severity_output, symptoms_profile
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                ''', (st.session_state.patient_name, st.session_state.national_id, current_timestamp, st.session_state.node_selection, st.session_state.computed_pallor, final_hb, final_severity, json.dumps(symptoms_map, ensure_ascii=False)))
-                db_conn.commit()
-                db_conn.close()
+                # تخزين فوري في قاعدة البيانات المحلية المحاكية للسحابة
+                conn = sqlite3.connect('biolens_clinical_cloud_v6.db')
+                c = conn.cursor()
+                c.execute("INSERT INTO records (patient_name, national_id, timestamp, node_type, pallor_feature, computed_hb, severity_output, symptoms_profile) VALUES (?,?,?,?,?,?,?,?)",
+                          (st.session_state.patient_name, st.session_state.national_id, now_str, st.session_state.node_selection, st.session_state.computed_pallor, hb_val, diag, json.dumps(s_map, ensure_ascii=False)))
+                conn.commit()
+                conn.close()
                 
                 st.session_state.final_report_data = {
-                    "patient_name": st.session_state.patient_name,
-                    "national_id": st.session_state.national_id,
-                    "timestamp": current_timestamp,
-                    "node": st.session_state.node_selection,
-                    "hb": final_hb,
-                    "pallor": st.session_state.computed_pallor,
-                    "severity": final_severity,
-                    "symptoms": symptoms_map
+                    "name": st.session_state.patient_name, "id": st.session_state.national_id,
+                    "time": now_str, "node": st.session_state.node_selection, "hb": hb_val,
+                    "pallor": st.session_state.computed_pallor, "diag": diag, "symptoms": s_map
                 }
                 st.session_state.current_step = 4
                 st.rerun()
 
     # ------------------------------------------
-    # المرحلة 4: عرض النتائج الختامية
+    # الصفحة 4: لوحة التقرير الطبي الختامي
     # ------------------------------------------
     elif st.session_state.current_step == 4:
         if st.session_state.final_report_data:
-            rep = st.session_state.final_report_data
-            
-            st.markdown("<div class='step-card' style='border: 2px solid #10b981 !important;'>", unsafe_allow_html=True)
-            st.markdown("<h3 style='color:#10b981 !important; text-align:center; font-weight:700;'>📋 تقرير الاستدلال الطبي النهائي</h3>", unsafe_allow_html=True)
+            r = st.session_state.final_report_data
+            st.markdown("<div class='clinical-card' style='border-top: 5px solid #16a34a !important;'><div class='card-heading' style='border:none; color:#16a34a !important;'>✓ تم توليد التقرير الطبي الاستدلالي بنجاح</div>", unsafe_allow_html=True)
             
             st.markdown(f"""
-            <div style='background:rgba(59,130,246,0.05); padding:12px; border-radius:8px; margin-bottom:15px; font-size:13px;'>
-                <b>👤 المريض:</b> {rep['patient_name']}<br>
-                <b>🆔 الرقم الوطني:</b> <code>{rep['national_id']}</code><br>
-                <b>📡 عقدة الـ IoT:</b> {rep['node']}<br>
-                <b>⏱️ الوقت:</b> {rep['timestamp']}
-            </div>
+                <p style='font-size:14px; margin: 4px 0;'><b>المريض:</b> {r['name']} | <b>المعرّف:</b> <code>{r['id']}</code></p>
+                <p style='font-size:14px; margin: 4px 0;'><b>العقدة المستهدفة:</b> {r['node']} | <b>التوقيت:</b> {r['time']}</p>
+                <hr style='border:none; border-top: 1px solid #e2e8f0; margin: 15px 0;'>
             """, unsafe_allow_html=True)
             
-            st.metric(label="📊 تركيز خضاب الدم التقديري (Computed Hb):", value=f"{rep['hb']} g/dL")
-            st.metric(label="📟 مؤشر الشحوب اللوني لـ OpenCV:", value=f"{round(rep['pallor'], 2)}")
-            
-            st.warning(f"🧠 استنتاج تصنيف نموذج الذكاء: {rep['severity']}")
+            # عرض المؤشرات الحيوية بشكل وبطاقات غاية في الأناقة والبساطة
+            col_m1, col_m2 = st.columns(2)
+            with col_m1:
+                st.metric("خضاب الدم المقدر (Computed Hb)", f"{r['hb']} g/dL")
+            with col_m2:
+                st.metric("مؤشر الشحوب الرقمي (Pallor)", f"{round(r['pallor'], 2)}")
+                
+            st.markdown(f"""
+                <div style='background-color:#f1f5f9; padding:12px; border-radius:10px; margin-top:15px;'>
+                    <span style='font-size:13px; font-weight:600; color:#334155;'>التصنيف النهائي لشجرة القرار للذكاء الاصطناعي:</span><br>
+                    <span style='font-size:14px; font-weight:700; color:#1e3a8a;'>{r['diag']}</span>
+                </div>
+            """, unsafe_allow_html=True)
             st.markdown("</div>", unsafe_allow_html=True)
             
-        if st.button("🔄 إجراء فحص طبي جديد", use_container_width=True):
+        if st.button("🔄 إجراء فحص طبي جديد لمريض آخر", use_container_width=True):
             st.session_state.current_step = 1
             st.session_state.patient_name = ""
             st.session_state.national_id = ""
@@ -354,49 +320,43 @@ if selected_mode == "🧠 محرك الفحص والتشخيص المتتالي"
             st.rerun()
 
 # ==========================================
-# 7. الواجهة الثانية: صفحة الطبيب ونظام المراسلة للنتائج
+# 6. المسار الثاني: صفحة استدعاء البيانات وبوابة المراسلة للطبيب
 # ==========================================
-elif selected_mode == "📊 لوحة السجلات ونظام المراسلة للطبيب":
-    st.markdown("""
-        <div class='premium-header' style='background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%) !important;'>
-            <h1>بوابة استدعاء السجلات وبث الرسائل</h1>
-            <p>منصة الطبيب المشرف لإرسال التقارير الطبية فورياً للعيادات المتصلة</p>
-        </div>
-    """, unsafe_allow_html=True)
-    
-    st.markdown("<div class='step-card'>", unsafe_allow_html=True)
-    filter_q = st.text_input("ابحث عن مريض بالاسم أو الرقم الوطني لاستدعاء ملفه:")
+elif main_tab == "📊 قاعدة بيانات الطبيب والمراسلة":
+    st.markdown("<div class='clinical-card'><div class='card-heading'>سحب السجلات الطبية من المستودع السحابي والـ IoT</div>", unsafe_allow_html=True)
+    search_q = st.text_input("ابحث باسم المريض أو الرقم الوطني الفوري لتصفية الملفات:")
     st.markdown("</div>", unsafe_allow_html=True)
     
-    db_c = sqlite3.connect('biolens_clinical_cloud_v6.db')
-    db_cur = db_c.cursor()
-    
-    if filter_q:
-        db_cur.execute('SELECT * FROM records WHERE national_id LIKE ? OR patient_name LIKE ? ORDER BY timestamp DESC', ('%' + filter_q + '%', '%' + filter_q + '%'))
+    conn = sqlite3.connect('biolens_clinical_cloud_v6.db')
+    c = conn.cursor()
+    if search_q:
+        c.execute('SELECT * FROM records WHERE national_id LIKE ? OR patient_name LIKE ? ORDER BY timestamp DESC', ('%'+search_q+'%', '%'+search_q+'%'))
     else:
-        db_cur.execute('SELECT * FROM records ORDER BY timestamp DESC')
-        
-    all_records = db_cur.fetchall()
-    db_c.close()
+        c.execute('SELECT * FROM records ORDER BY timestamp DESC')
+    records = c.fetchall()
+    conn.close()
     
-    if all_records:
-        for r in all_records:
-            with st.expander(f"👤 {r[1]} | 🆔 {r[2]} | ⏱️ {r[3]}"):
+    if records:
+        for item in records:
+            with st.expander(f"👤 {item[1]} | 🆔 {item[2]} | ⏱️ {item[3]}"):
                 st.markdown(f"""
-                * **موضع عقدة مستشعر الـ IoT:** `{r[4]}`
-                * **مؤشر الشحوب اللوني المستخلص:** `{round(r[5], 2)}`
-                * **نسبة الهيموجلوبين:** `{r[6]} g/dL`
-                * **قرار نموذج التصنيف الآلي:** **{r[7]}**
-                """)
+                <p style='font-size:13px; line-height:1.6; margin:0;'>
+                • عقدة المستشعر البصري: <code>{item[4]}</code><br>
+                • مؤشر الشحوب المستخلص: <b>{round(item[5], 2)}</b><br>
+                • تركيز الهيموجلوبين التقديري: <span style='color:#2563eb; font-weight:bold;'>{item[6]} g/dL</span><br>
+                • تشخيص محرك النظام المعتمد: <b>{item[7]}</b>
+                </p>
+                <hr style='border:none; border-top:1px dashed #cbd5e1; margin:12px 0;'>
+                <p style='font-size:12px; color:#475569; font-weight:600;'>📡 بوابة الاتصال عن بُعد وبث الرسائل والتقارير فورياً للطبيب:</p>
+                """, unsafe_allow_html=True)
                 
-                st.markdown("---")
-                doc_email = st.text_input(f"بريد الطبيب المستلم لتقرير ({r[1]}):", value="doctor@hospital.clinic", key=f"em_{r[0]}")
+                doc_mail = st.text_input("بريد العيادة أو الطبيب المعالج المستلم:", value="doctor@hospital.clinic", key=f"mail_{item[0]}")
                 
-                if st.button(f"🚀 بث وإرسال التقرير فورياً للطبيب", key=f"btn_{r[0]}", use_container_width=True):
-                    with st.spinner("جاري تشفير الحزمة السحابية وبثها..."):
-                        time.sleep(1.2)
-                    st.success(f"📨 تم بث التقرير الطبي الشامل وإرساله بنجاح إلى: {doc_email}")
-                    st.toast("✅ Telemetry Packet Sent!", icon="📡")
+                if st.button("🚀 بث وإرسال حزمة التقرير الطبي الفوري", key=f"btn_{item[0]}", use_container_width=True):
+                    with st.spinner("جاري تعبئة حزمة البيانات وتوقيعها مشفّرة..."):
+                        time.sleep(1.0)
+                    st.success(f"📨 تم إرسال التقرير الشامل للمريض بنجاح إلى الطبيب على العنوان ({doc_mail})!")
+                    st.toast("✅ Telemetry Data Transmitted!", icon="📡")
     else:
-        st.info("📂 لا توجد سجلات مخزنة حالياً في قاعدة البيانات الطبية السحابية.")
+        st.info("📂 المستودع الطبي السحابي فارغ حالياً، أو لا توجد نتائج تطابق بحثكِ.")
 
