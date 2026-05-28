@@ -466,6 +466,42 @@ elif menu_selection == "📊 السجلات الطبية السحابية الت
     db_c = sqlite3.connect('biolens_clinical_cloud_v4.db')
     db_cur = db_c.cursor()
     
+    # [تم هنا إصلاح القوس المغلق المفقود بنجاح تام]
     if filter_q:
-        db_cur.execute('SELECT * FROM records WHERE national_id LIKE ? OR patient_name LIKE ? ORDER BY timestamp DESC', ('%' + filter_q + '%', '%' + filter_q
+        db_cur.execute('SELECT * FROM records WHERE national_id LIKE ? OR patient_name LIKE ? ORDER BY timestamp DESC', ('%' + filter_q + '%', '%' + filter_q + '%'))
+    else:
+        db_cur.execute('SELECT * FROM records ORDER BY timestamp DESC')
+        
+    all_records = db_cur.fetchall()
+    db_c.close()
+    
+    if all_records:
+        for r in all_records:
+            symptoms_parsed = {}
+            if r[8]:
+                try: symptoms_parsed = json.loads(r[8])
+                except: pass
+                
+            with st.expander(f"👤 المريض: {r[1]} | 📡 تيار المستشعر: {r[4]} | ⏱️ تاريخ البث السحابي: {r[3]}"):
+                col_f1, col_f2 = st.columns(2)
+                with col_f1:
+                    st.markdown(f"""
+                    * **الرقم السلسلي لعقدة الـ IoT:** `{r[0]}`
+                    * **الرقم الوطني للمفحوص:** `<code>{r[2]}</code>`
+                    * **مؤشر الشحوب اللوني الفعلي المستخلص:** `{round(r[5], 2) if r[5] else 'غير متوفر'}`
+                    * **مستوى خضاب الدم المعتمد النهائي:** <span style='color:#3b82f6; font-weight:bold; font-size:16px;'>{r[6]} g/dL</span>
+                    """)
+                with col_f2:
+                    st.markdown("**🔍 الملف السريري والبيانات المصاحبة لبث إنترنت الأشياء:**")
+                    if symptoms_parsed:
+                        for k, v in symptoms_parsed.items():
+                            st.markdown(f"- {k}: `{v}`")
+                
+                st.markdown(f"""
+                <div style='background:rgba(59, 130, 246, 0.05); padding:15px; border-radius:12px; margin-top:10px; border:2px solid {border_color}; font-size:13px; text-align:right;'>
+                    <span style='color:{text_color} !important;'><b>🧠 تصنيف ومبررات نموذج شجرة القرار (Scikit-Learn Model) المخزن سحابياً:</b></span> <span style='color:#10b981; font-weight:bold;'>{r[7]}</span>
+                </div>
+                """, unsafe_allow_html=True)
+    else:
+        st.info("📂 قاعدة البيانات الطبية السحابية للـ IoT جاهزة ومستقرة تماماً، ولا توجد سجلات تراكمية حالياً.")
 
