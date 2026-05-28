@@ -78,11 +78,11 @@ if not st.session_state.splash_executed:
         ]
         
         for p, text in loading_steps:
-            time.sleep(0.4)
+            time.sleep(0.3)
             progress_bar.progress(p)
             status_box.markdown(f"<p class='status-text'>{text}</p>", unsafe_allow_html=True)
             
-        time.sleep(0.2)
+        time.sleep(0.1)
         
     st.session_state.splash_executed = True
     st.rerun()
@@ -116,115 +116,142 @@ def train_scikit_decision_tree():
 biolens_classifier = train_scikit_decision_tree()
 
 # ==========================================
-# 5. التحكم الديناميكي في الوضع اللوني وإصلاح ألوان الخطوط كلياً
+# 5. التحكم الديناميكي المتقدم في واجهة الـ CSS وإصلاح الألوان كلياً
 # ==========================================
 with st.sidebar:
     st.markdown("""
-        <div style='text-align:center; padding:12px; background: linear-gradient(135deg, #1e3a8a, #3b82f6); border-radius:14px; margin-bottom:15px;'>
+        <div style='text-align:center; padding:16px; background: linear-gradient(135deg, #1e3a8a, #3b82f6); border-radius:14px; margin-bottom:20px;'>
             <h2 style='color:#ffffff !important; margin:0; font-size:24px; font-weight:900; text-align:center;'>BioLens AI</h2>
-            <small style='color:#e2e8f0 !important; text-align:center; display:block;'>Clinical Intelligence System</small>
+            <small style='color:#e2e8f0 !important; text-align:center; display:block; margin-top:4px;'>Clinical Intelligence System</small>
         </div>
     """, unsafe_allow_html=True)
     
     app_theme = st.radio("اختر نمط الإضاءة المريح لعينيك:", ["الوضع النهاري المشرق (Clinical Light)", "الوضع الليلي الفاخر (Deep Dark)"])
     st.markdown("---")
 
-# هندسة تثبيت وتلوين الخطوط بشكل حاسم لمنع الاختفاء
+# بناء منطق الألوان الصارم ومنع توغل أنماط المتصفح الافتراضية
 if app_theme == "الوضع النهاري المشرق (Clinical Light)":
     bg_color = "#f8fafc"
     card_bg = "#ffffff"
-    text_color = "#0f172a"      # أزرق كحلي داكن جداً / أسود
+    text_color = "#1e293b"      # أسود كحلي ناصع وواضح جداً
+    sidebar_text = "#0f172a"    # خط داكن جداً داخل السايدبار المشرق
     sub_text = "#1e3a8a"        
     border_color = "#cbd5e1"
     header_gradient = "linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%)"
-    header_text = "#ffffff"
 else:
     bg_color = "#090d16"
     card_bg = "#111827"
-    text_color = "#ffffff"      # أبيض ناصع
-    sub_text = "#38bdf8"        # أزرق سماوي مشع للبروز
+    text_color = "#ffffff"      # خط أبيض ناصع
+    sidebar_text = "#ffffff"    # خط أبيض ناصع داخل السايدبار المظلم
+    sub_text = "#38bdf8"        
     border_color = "#374151"
-    header_gradient = "linear-gradient(135deg, #1f2937 0%, #111827 100%)"
-    header_text = "#38bdf8"
+    header_gradient = "linear-gradient(135deg, #1e3a8a 0%, #0f172a 100%)"
 
 st.markdown(f"""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&display=swap');
     
-    /* حقن الخلفية العامة للتطبيق */
+    /* حقن الخلفية الأساسية للتطبيق */
+    .stApp {{ background-color: {bg_color} !important; }}
     .stMainBlockContainer {{ background-color: {bg_color} !important; }}
     
-    /* فرض تلوين كافة النصوص والفقرات وليبل المدخلات لمنع اختفائها */
+    /* فرض التحكم الكامل بالخطوط والاتجاهات لجميع العناصر النصية الافتراضية */
     h1, h2, h3, h4, h5, h6, p, span, label, div[data-testid="stWidgetLabel"] p {{
         font-family: 'Tajawal', sans-serif !important;
         direction: rtl !important;
         text-align: right !important;
-        color: {text_color} !important;
     }}
     
-    /* إجبار نصوص الـ Selectbox والـ Radio Buttons الداخلية والخارجية على أخذ اللون الصحيح */
+    /* إصلاح شامل وحاسم لنصوص ومحتويات الـ Sidebar ليكون مقروءاً دائماً */
+    section[data-testid="stSidebar"] div, section[data-testid="stSidebar"] label, section[data-testid="stSidebar"] p, section[data-testid="stSidebar"] span {{
+        color: {sidebar_text} !important;
+        font-family: 'Tajawal', sans-serif !important;
+    }}
+    
+    /* منع اختفاء الألوان داخل حقول الإدخال والـ Selectbox */
     .stSelectbox div, .stRadio div, div[role="radiogroup"] label, div[data-baseweb="select"] span {{
         color: {text_color} !important;
         direction: rtl !important;
         text-align: right !important;
     }}
     
-    /* تنسيق الهيدر الفاخر الرئيسي */
+    /* تصميم بطاقة الهيدر الفاخرة وعزلها كلياً عن تداخلات النصوص الافتراضية */
     .premium-header {{
-        background: {header_gradient};
-        padding: 30px;
-        border-radius: 20px;
-        box-shadow: 0 15px 35px rgba(0,0,0,0.2);
-        margin-bottom: 30px;
-        border-right: 8px solid #fbbf24;
+        background: {header_gradient} !important;
+        padding: 30px !important;
+        border-radius: 20px !important;
+        box-shadow: 0 15px 35px rgba(0,0,0,0.2) !important;
+        margin-bottom: 30px !important;
+        border-right: 8px solid #fbbf24 !important;
+        direction: rtl !important;
     }}
-    .premium-header h1 {{ color: {header_text} !important; text-align: center !important; font-weight: 900; font-size: 32px; margin:0; }}
-    .premium-header p {{ color: #94a3b8 !important; text-align: center !important; margin: 10px 0 0 0; font-size: 16px; }}
+    .premium-header h1 {{ 
+        color: #ffffff !important; 
+        text-align: center !important; 
+        font-weight: 900 !important; 
+        font-size: 30px !important; 
+        margin: 0 0 10px 0 !important;
+    }}
+    .premium-header p {{ 
+        color: #e2e8f0 !important; 
+        text-align: center !important; 
+        margin: 0 !important; 
+        font-size: 15px !important; 
+        line-height: 1.6 !important;
+    }}
     
-    /* بطاقات العمل السريرية المعزولة */
+    /* بطاقات العمل السريرية المعزولة بدقة */
     .clinical-card {{
         background: {card_bg} !important;
-        padding: 25px;
-        border-radius: 16px;
-        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.05);
+        padding: 25px !important;
+        border-radius: 16px !important;
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.05) !important;
         border: 2px solid {border_color} !important;
-        margin-bottom: 25px;
+        margin-bottom: 25px !important;
+        direction: rtl !important;
+    }}
+    
+    .card-normal-text {{
+        color: {text_color} !important;
+        font-size: 15px !important;
+        line-height: 1.6 !important;
+        text-align: right !important;
     }}
     
     .section-title {{
         color: #3b82f6 !important;
-        font-weight: 700;
-        font-size: 20px;
-        border-bottom: 3px solid #fbbf24;
-        padding-bottom: 6px;
-        margin-bottom: 20px;
-        text-align: right;
+        font-weight: 700 !important;
+        font-size: 19px !important;
+        border-bottom: 3px solid #fbbf24 !important;
+        padding-bottom: 8px !important;
+        margin-bottom: 20px !important;
+        text-align: right !important;
     }}
     
-    /* زر التشغيل والمحاكاة الفخم */
+    /* زر المحاكاة الفخم للتشغيل */
     .stButton>button {{
-        width: 100%;
-        background: linear-gradient(90deg, #3b82f6 0%, #1d4ed8 100%);
+        width: 100% !important;
+        background: linear-gradient(90deg, #3b82f6 0%, #1d4ed8 100%) !important;
         color: white !important;
-        border-radius: 12px;
-        font-size: 18px;
-        font-weight: 700;
-        height: 52px;
-        border: none;
-        box-shadow: 0 8px 20px rgba(37, 99, 235, 0.2);
+        border-radius: 12px !important;
+        font-size: 18px !important;
+        font-weight: 700 !important;
+        height: 52px !important;
+        border: none !important;
+        box-shadow: 0 8px 20px rgba(37, 99, 235, 0.2) !important;
     }}
     
     /* لوحة التقرير الطبي الختامي */
     .report-panel {{
         background: {card_bg} !important;
         border: 2px solid #10b981 !important;
-        padding: 25px;
-        border-radius: 20px;
-        box-shadow: 0 20px 40px rgba(16, 185, 129, 0.1);
-        margin-top: 25px;
+        padding: 25px !important;
+        border-radius: 20px !important;
+        box-shadow: 0 20px 40px rgba(16, 185, 129, 0.1) !important;
+        margin-top: 25px !important;
     }}
     
-    .sub-highlight {{ color: {sub_text} !important; font-weight: 600; }}
+    .sub-highlight {{ color: {sub_text} !important; font-weight: 600 !important; }}
     </style>
 """, unsafe_allow_html=True)
 
@@ -232,7 +259,7 @@ st.markdown(f"""
 # 6. مستودع قاعدة البيانات المحلية (SQLite3)
 # ==========================================
 def create_biolens_cloud_db():
-    conn = sqlite3.connect('biolens_clinical_cloud_v3.db')
+    conn = sqlite3.connect('biolens_clinical_cloud_v4.db')
     cursor = conn.cursor()
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS records (
@@ -270,7 +297,7 @@ if menu_selection == "🧠 محرك الفحص والمستشعر الضوئي (
     st.markdown("""
         <div class='premium-header'>
             <h1>منصة BioLens الطبية الذكية للتحليل الهجين</h1>
-            <p>قراءة حقيقية ومعالجة حية للمصفوفات الرقمية للصور متصلة فورياً بنموذج شجرة القرار الاستدلالي لـ Scikit-Learn</p>
+            <p>قراءة حقيقية ومعالجة حية للمصفوفات الرقمية للصور متصلة فورياً بنموذج شجرة القرار الاستدلالي لـ Scikit-Learn المتقدم</p>
         </div>
     """, unsafe_allow_html=True)
     
@@ -336,7 +363,7 @@ if menu_selection == "🧠 محرك الفحص والمستشعر الضوئي (
                 s_fatigue = st.selectbox("• هل يعاني المفحوص من وهن وتعب مزمن، خمول مفاجئ وضيق ملحوظ في التنفس عند بذل أقل مجهود؟", ["لا، مستقر فسيولوجياً وطبيعياً", "نعم، يشكو من إجهاد حاد مستمر وضيق تنفس مستمر"])
                 s_diet = st.selectbox("• طبيعة النمط والمسار الغذائي المتبع للمريض في الفترات الطويلة الأخيرة:", ["متوازن وغني بالمصادر الحيوانية والبروتينات والحديد واللحوم الحمراء", "نباتي صارم كلياً أو يعتمد بالكامل على وجبات غير صحية وسريعة وفقيرة العناصر الفيتامينية"])
                 s_nails = st.selectbox("• هل تظهر علامات سريرية واضحة لتشوه وتقعر الأظافر (أظافر ملعقية مقعرة) أو جفاف حاد وتساقط شعر حاد؟", ["لا، الحالة النسيجية للأظافر طبيعية ومستقرة", "نعم، الأظافر متقعرة ملعقية وهشة جداً وهناك تساقط حاد وجفاف"])
-                s_pica = st.selectbox("• هل لوحظ لدى المريض اضطراب سلوكي لشهوة وتناول أشياء غير غذائية غريبة (مثل مضغ الثلج المستمر أو التراب)؟", ["لا توجد علامات سلوكية غريبة", "نعم، رصدت هذه الشهوة السلوكية الغريبة (عَرَض Pica إيجابي حقيقي)"])
+                s_pica = st.selectbox("• هل لوحظ لدى المريض اضطراب سلوكي لشهوة وتناول أشياء غير غذائية غريبة (مثل مضغ الثلج المستمر أو التراب) Berry-Sign؟", ["لا توجد علامات سلوكية غريبة", "نعم، رصدت هذه الشهوة السلوكية الغريبة (عَرَض Pica إيجابي حقيقي)"])
                 s_neuro = st.selectbox("• هل يشتكي المفحوص من وخز وتنميل مستمر ومتكرر في أطراف اليدين والقدمين أو تشتت ذهني وضعف تركيز؟", ["لا توجد شواهد أو علامات عصبية محيطية", "نعم، يعاني من تنميل ووخز واضح واعتلال عصبي محيطي حسي"])
                 st.markdown("</div>", unsafe_allow_html=True)
                 
@@ -353,8 +380,8 @@ if menu_selection == "🧠 محرك الفحص والمستشعر الضوئي (
                         input_vector = np.array([[computed_pallor, v_fatigue, v_diet, v_nails, v_pica, v_neuro]])
                         predicted_class = int(biolens_classifier.predict(input_vector)[0])
                         
-                        base_hb = 16.5 - (computed_pallor / 15.5) - (v_fatigue * 0.5) - (v_diet * 0.3)
-                        final_hb = max(3.8, min(17.5, round(base_hb, 1)))
+                        base_hb = 15.5 - (computed_pallor / 18.5) - (v_fatigue * 0.4) - (v_diet * 0.3)
+                        final_hb = max(4.1, min(16.5, round(base_hb, 1)))
                         
                         if predicted_class == 0 or final_hb >= 12.0:
                             final_severity = "الحالة سليمة وطبيعية تماماً (Physiological Normal Node)"
@@ -376,7 +403,7 @@ if menu_selection == "🧠 محرك الفحص والمستشعر الضوئي (
                         symptoms_json_str = json.dumps(symptoms_map, ensure_ascii=False)
                         current_timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                         
-                        db_conn = sqlite3.connect('biolens_clinical_cloud_v3.db')
+                        db_conn = sqlite3.connect('biolens_clinical_cloud_v4.db')
                         db_cursor = db_conn.cursor()
                         db_cursor.execute('''
                             INSERT INTO records (
@@ -392,10 +419,10 @@ if menu_selection == "🧠 محرك الفحص والمستشعر الضوئي (
                     
                     st.markdown(f"""
                     <div style='background:rgba(59, 130, 246, 0.08); padding:15px; border-radius:12px; border:1px solid #3b82f6; margin-bottom:20px; text-align:right;'>
-                        <span style='color:{text_color} !important;'><b>👤 المفحوص الاستعادي:</b> {p_name} </span> &nbsp;&nbsp;|&nbsp;&nbsp; 
-                        <span style='color:{text_color} !important;'><b>🆔 المعرّف الوطني الهيكلي:</b> <code>{n_id}</code> </span> &nbsp;&nbsp;|&nbsp;&nbsp; 
-                        <span style='color:{text_color} !important;'><b>📡 عقدة استشعار الـ IoT:</b> {node_selection} </span> &nbsp;&nbsp;|&nbsp;&nbsp;
-                        <span style='color:{text_color} !important;'><b>⏱️ توقيت البث الشبكي:</b> {current_timestamp} </span>
+                        <p class='card-normal-text'><b>👤 المفحوص الاستعادي:</b> {p_name} &nbsp;&nbsp;|&nbsp;&nbsp; 
+                        <b>🆔 المعرّف الوطني الهيكلي:</b> <code>{n_id}</code> &nbsp;&nbsp;|&nbsp;&nbsp; 
+                        <b>📡 عقدة استشعار الـ IoT:</b> {node_selection} &nbsp;&nbsp;|&nbsp;&nbsp;
+                        <b>⏱️ توقيت البث الشبكي:</b> {current_timestamp} </p>
                     </div>
                     """, unsafe_allow_html=True)
                     
@@ -403,7 +430,7 @@ if menu_selection == "🧠 محرك الفحص والمستشعر الضوئي (
                     with col_m1:
                         st.metric(label="📊 تركيز خضاب الدم التقديري الموازن (Computed Hb Concentration):", value=f"{final_hb} g/dL")
                     with col_m2:
-                        st.metric(label="📟 مؤشار الشحوب النسيجي المستخلص من المصفوفة (Raw Pallor Feature):", value=f"{round(computed_pallor, 2)}")
+                        st.metric(label="📟 مؤشر الشحوب النسيجي المستخلص من الإشارة (Raw Pallor Feature):", value=f"{round(computed_pallor, 2)}")
                         
                     if final_hb >= 12.0:
                         st.success(f"🟢 **التصنيف الهيكلي النهائي لنموذج التعلم (Scikit-Learn Node):** {final_severity}")
@@ -415,8 +442,8 @@ if menu_selection == "🧠 محرك الفحص والمستشعر الضوئي (
                     st.markdown(f"""
                     <div style='background:rgba(16, 185, 129, 0.08); padding:20px; border-radius:16px; border-right:6px solid #10b981; margin-top:20px; text-align:right;'>
                         <h4 style='color:#10b981 !important; font-weight:bold; margin-top:0; font-size:17px;'>🧠 مسار مبررات الاستدلال وفروع التفرع الإكلينيكي (Decision Tree Inference Path):</h4>
-                        <p style='color:{text_color} !important; line-height:1.7; margin:0; font-size:15px;'>{final_reasoning}</p>
-                        <small style='color:{sub_text} !important; font-weight:bold; display:block; margin-top:12px;'>📊 معايير منظمة الصحة العالمية والتعلم الآلي: تم استدعاء دالة الكلاسيفاير لـ Scikit-Learn لمقاطعة المتغيرات الطيفية المستخلصة من الصورة الحقيقية مع أعراض الاستبيان الإكلينيكي لضمان موثوقية التشخيص الهجين.</small>
+                        <p style='color:{text_color} !important; line-height:1.7; margin:0; font-size:15px; text-align:right;'>{final_reasoning}</p>
+                        <small style='color:#3b82f6 !important; font-weight:bold; display:block; margin-top:12px; text-align:right;'>📊 معايير منظمة الصحة العالمية والتعلم الآلي: تم استدعاء دالة الكلاسيفاير لـ Scikit-Learn لمقاطعة المتغيرات الطيفية المستخلصة من الصورة الحقيقية مع أعراض الاستبيان الإكلينيكي لضمان موثوقية التشخيص الهجين.</small>
                     </div>
                     """, unsafe_allow_html=True)
                     st.markdown("</div>", unsafe_allow_html=True)
@@ -426,7 +453,7 @@ if menu_selection == "🧠 محرك الفحص والمستشعر الضوئي (
 # ==========================================
 elif menu_selection == "📊 السجلات الطبية السحابية التراكمية":
     st.markdown("""
-        <div class='premium-header' style='background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); border-right: 8px solid #ef4444;'>
+        <div class='premium-header' style='background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%) !important; border-right: 8px solid #ef4444 !important;'>
             <h1>مستودع السجلات الطبية التراكمية (BioLens IoT Telemetry)</h1>
             <p>مراجعة تاريخ تدفق ودمج بيانات أجهزة الاستشعار عبر السحابة والتحقق من مصداقية التشخيصات المخزنة حياً</p>
         </div>
@@ -436,44 +463,9 @@ elif menu_selection == "📊 السجلات الطبية السحابية الت
     filter_q = st.text_input("أدخل اسم المريض أو الرقم الوطني لمطابقة وبث السجل التراكمي الفوري لبيانات التعلم:")
     st.markdown("</div>", unsafe_allow_html=True)
     
-    db_c = sqlite3.connect('biolens_clinical_cloud_v3.db')
+    db_c = sqlite3.connect('biolens_clinical_cloud_v4.db')
     db_cur = db_c.cursor()
     
     if filter_q:
-        db_cur.execute('SELECT * FROM records WHERE national_id LIKE ? OR patient_name LIKE ? ORDER BY timestamp DESC', ('%' + filter_q + '%', '%' + filter_q + '%'))
-    else:
-        db_cur.execute('SELECT * FROM records ORDER BY timestamp DESC')
-        
-    all_records = db_cur.fetchall()
-    db_c.close()
-    
-    if all_records:
-        for r in all_records:
-            symptoms_parsed = {}
-            if r[8]:
-                try: symptoms_parsed = json.loads(r[8])
-                except: pass
-                
-            with st.expander(f"👤 المريض: {r[1]} | 📡 تيار المستشعر: {r[4]} | ⏱️ تاريخ البث السحابي: {r[3]}"):
-                col_f1, col_f2 = st.columns(2)
-                with col_f1:
-                    st.markdown(f"""
-                    * **الرقم السلسلي لعقدة الـ IoT:** `{r[0]}`
-                    * **الرقم الوطني للمفحوص:** `<code>{r[2]}</code>`
-                    * **مؤشر الشحوب اللوني الفعلي المستخلص:** `{round(r[5], 2) if r[5] else 'غير متوفر'}`
-                    * **مستوى خضاب الدم المعتمد النهائي:** <span style='color:#3b82f6; font-weight:bold; font-size:16px;'>{r[6]} g/dL</span>
-                    """)
-                with col_f2:
-                    st.markdown("**🔍 الملف السريري والبيانات المصاحبة لبث إنترنت الأشياء:**")
-                    if symptoms_parsed:
-                        for k, v in symptoms_parsed.items():
-                            st.markdown(f"- {k}: `{v}`")
-                
-                st.markdown(f"""
-                <div style='background:rgba(59, 130, 246, 0.05); padding:15px; border-radius:12px; margin-top:10px; border:2px solid {border_color}; font-size:13px;'>
-                    <span style='color:{text_color} !important;'><b>🧠 تصنيف ومبررات نموذج شجرة القرار (Scikit-Learn Model) المخزن سحابياً:</b></span> <span style='color:#10b981; font-weight:bold;'>{r[7]}</span>
-                </div>
-                """, unsafe_allow_html=True)
-    else:
-        st.info("📂 قاعدة البيانات الطبية السحابية للـ IoT جاهزة ومستقرة تماماً، ولا توجد سجلات تراكمية حالياً.")
+        db_cur.execute('SELECT * FROM records WHERE national_id LIKE ? OR patient_name LIKE ? ORDER BY timestamp DESC', ('%' + filter_q + '%', '%' + filter_q
 
